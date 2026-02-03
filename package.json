@@ -1,0 +1,17 @@
+{
+  "name": "timekeeper-keystone-db",
+  "version": "1.0.0",
+  "description": "Keystone database for TimeKeeper application",
+  "scripts": {
+    "dev": "keystone dev",
+    "build": "keystone build",
+    "start": "keystone start"
+  },
+  "dependencies": {
+    "@keystone-6/core": "^5.8.0",
+    "mysql2": "^3.6.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
