@@ -5,6 +5,32 @@
  */
 
 const GRAPHQL_ENDPOINT = 'http://localhost:3000/api/graphql';
+const cors = require('cors');
+const DEFAULT_CORS_ORIGINS = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map((s) => s.trim())
+  : ['http://localhost:3000'];
+const CORS_ALLOW_ALL = process.env.CORS_ALLOW_ALL === 'true';
+const CORS_OPTIONS = CORS_ALLOW_ALL
+  ? { origin: true, credentials: true }
+  : { origin: DEFAULT_CORS_ORIGINS, credentials: true };
+const TRUST_X_FORWARDED = process.env.TRUST_X_FORWARDED === 'true';
+if (typeof app !== 'undefined' && app) {
+  if (TRUST_X_FORWARDED) {
+    app.use((req, _res, next) => {
+      const xfHost = req.headers['x-forwarded-host'];
+      const xfProto = req.headers['x-forwarded-proto'] || (req.headers['x-forwarded-port'] === '443' ? 'https' : 'http');
+      if (xfHost) {
+        const hostVal = Array.isArray(xfHost) ? xfHost[0] : xfHost;
+        const originHeader = `${xfProto || 'http'}://${hostVal}`;
+        if (!req.headers.origin || req.headers.origin !== originHeader) {
+          req.headers.origin = originHeader;
+        }
+      }
+      next();
+    });
+  }
+  app.use(cors(CORS_OPTIONS));
+}
 
 /**
  * Make a GraphQL request

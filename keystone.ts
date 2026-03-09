@@ -3,6 +3,19 @@ import { allowAll } from '@keystone-6/core/access';
 import { text, timestamp, checkbox, relationship } from '@keystone-6/core/fields';
 import { statelessSessions } from '@keystone-6/core/session';
 
+// CORS configuration: allow configuring origins via env vars
+const DEFAULT_CORS_ORIGINS = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map((s) => s.trim())
+  : ['http://localhost:3000'];
+const CORS_ALLOW_ALL = process.env.CORS_ALLOW_ALL === 'true';
+const TRUST_X_FORWARDED = process.env.TRUST_X_FORWARDED === 'true';
+const KEYSTONE_CORS = CORS_ALLOW_ALL || TRUST_X_FORWARDED
+  ? { origin: true, credentials: true }
+  : { origin: DEFAULT_CORS_ORIGINS, credentials: true };
+const CORS_OPTIONS = CORS_ALLOW_ALL || TRUST_X_FORWARDED
+  ? { origin: true, credentials: true }
+  : { origin: DEFAULT_CORS_ORIGINS, credentials: true };
+
 export default config({
   db: {
     provider: 'mysql',
@@ -60,9 +73,27 @@ export default config({
     isAccessAllowed: () => true,
   },
   server: {
-    cors: true,
+    cors: KEYSTONE_CORS,
     maxRequestSizeInBytes: 50 * 1024 * 1024,
     extendExpressApp: (app) => {
+      const cors = require('cors');
+      // If running behind port-forwarding/reverse-proxy, optionally trust X-Forwarded headers
+      if (TRUST_X_FORWARDED) {
+        app.use((req: any, _res: any, next: any) => {
+          const xfHost = req.headers['x-forwarded-host'];
+          const xfProto = req.headers['x-forwarded-proto'] || (req.headers['x-forwarded-port'] === '443' ? 'https' : 'http');
+          if (xfHost) {
+            const hostVal = Array.isArray(xfHost) ? xfHost[0] : xfHost;
+            const originHeader = `${xfProto || 'http'}://${hostVal}`;
+            if (!req.headers.origin || req.headers.origin !== originHeader) {
+              req.headers.origin = originHeader;
+            }
+          }
+          next();
+        });
+      }
+      app.use(cors(CORS_OPTIONS));
+
       // Helper to parse JSON from request
       const parseJsonBody = async (req: any) => {
         return new Promise((resolve, reject) => {
